@@ -1,0 +1,70 @@
+.app-shell {
+  padding-top: clamp(1rem, 2vw, 1.75rem);
+  padding-bottom: clamp(2rem, 4vw, 3rem);
+}
+
+.page-title {
+  max-width: 24ch;
+  line-height: 1.12;
+}
+
+.metric-tile {
+  min-width: 0;
+  background: color-mix(in srgb, var(--mantine-color-body) 92%, white 8%);
+}
+
+.metric-tile p,
+.station-address {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fuel-grid .mantine-Checkbox-root,
+.mantine-Checkbox-root,
+.mantine-Switch-root {
+  min-width: 0;
+}
+
+.mantine-Checkbox-body,
+.mantine-Switch-body {
+  min-width: 0;
+}
+
+.mantine-Checkbox-label,
+.mantine-Switch-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.map-wrapper {
+  border: 1px solid var(--mantine-color-gray-3);
+  border-radius: var(--mantine-radius-lg);
+  overflow: hidden;
+  background: var(--mantine-color-body);
+}
+
+.map-panel {
+  min-height: 23rem;
+}
+
+.map-panel--test {
+  display: grid;
+  place-items: center;
+  min-height: 12rem;
+  color: var(--mantine-color-dimmed);
+}
+
+.leaflet-map {
+  min-height: 23rem;
+}
+
+.station-copy {
+  min-width: 0;
+}
+
+@media (max-width: 62rem) {
+  .leaflet-map,
+  .map-panel {
+    min-height: 19rem;
+  }
+}

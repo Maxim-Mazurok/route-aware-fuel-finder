@@ -1,0 +1,42 @@
+services:
+  osrm-prepare:
+    image: ghcr.io/project-osrm/osrm-backend:v6.0.0
+    container_name: route-aware-fuel-finder-osrm-prepare
+    working_dir: /data
+    entrypoint: ["/bin/sh", "/opt/osrm-prepare.sh"]
+    volumes:
+      - ./docker/osrm/osrm-prepare.sh:/opt/osrm-prepare.sh:ro
+      - ./data/osrm:/data
+
+  osrm-routed:
+    image: ghcr.io/project-osrm/osrm-backend:v6.0.0
+    container_name: route-aware-fuel-finder-osrm-routed
+    depends_on:
+      osrm-prepare:
+        condition: service_completed_successfully
+    command: osrm-routed --algorithm mld /data/map.osrm
+    ports:
+      - "5300:5000"
+    volumes:
+      - ./data/osrm:/data
+
+  nominatim:
+    image: mediagis/nominatim:5.1
+    container_name: route-aware-fuel-finder-nominatim
+    profiles: ["local-geocode"]
+    shm_size: 1gb
+    environment:
+      PBF_PATH: /nominatim/data/map.osm.pbf
+      NOMINATIM_PASSWORD: nominatim
+      IMPORT_STYLE: street
+      THREADS: 4
+    ports:
+      - "8080:8080"
+    volumes:
+      - nominatim-data:/var/lib/postgresql/16/main
+      - nominatim-flatnode:/nominatim/flatnode
+      - ./data/nominatim:/nominatim/data
+
+volumes:
+  nominatim-data:
+  nominatim-flatnode:
