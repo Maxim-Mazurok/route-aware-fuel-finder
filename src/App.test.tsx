@@ -1,7 +1,7 @@
 import { MantineProvider } from '@mantine/core'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 import { createMockServices } from './providers/mockServices'
@@ -42,6 +42,7 @@ describe('App', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     cleanup()
   })
 
@@ -177,6 +178,55 @@ describe('App', () => {
         screen.getByText(/could not load the current nsw fuel dataset/i),
       ).toBeInTheDocument()
     })
+
+    expect(screen.getByRole('button', { name: /retry now/i })).toBeInTheDocument()
+  })
+
+  it('schedules a retry and can recover manually when the first station load fails', async () => {
+    const user = userEvent.setup()
+    const flakyServices = createMockServices({
+      now: () => fixedNow,
+      currentLocation: {
+        label: 'Sydney Town Hall, George Street, Sydney NSW 2000',
+        coordinate: { lat: -33.8731, lng: 151.2065 },
+        source: 'current-location',
+      },
+    })
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+
+    let attempts = 0
+    const liveStations = await flakyServices.fuelPriceProvider.listStations()
+
+    flakyServices.fuelPriceProvider = {
+      async listStations() {
+        attempts += 1
+
+        if (attempts === 1) {
+          throw new Error('temporary startup race')
+        }
+
+        return liveStations
+      },
+    }
+
+    renderApp(flakyServices)
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/retrying automatically in a few seconds/i),
+      ).toBeInTheDocument()
+    })
+
+    expect(setTimeoutSpy).toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /retry now/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^plan route$/i })).toBeEnabled()
+    })
+
+    expect(
+      screen.queryByText(/retrying automatically in a few seconds/i),
+    ).not.toBeInTheDocument()
   })
 
   it('shows a planning error when geocoding cannot resolve the destination', async () => {

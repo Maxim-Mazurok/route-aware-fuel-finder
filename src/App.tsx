@@ -49,6 +49,7 @@ import { defaultServices } from './providers/defaultServices'
 import type { AppServices, ResolvedPlace } from './providers/types'
 
 const FUEL_OPTIONS: FuelCode[] = ['U91', 'E10', 'P95', 'P98', 'DL', 'PDL', 'LPG', 'EV']
+const STATION_RETRY_DELAY_MS = 3000
 
 const PRESET_TIME_VALUES = [
   { label: 'Student', value: 12 },
@@ -238,25 +239,39 @@ function App({ services = defaultServices }: AppProps) {
   )
 
   const [stations, setStations] = useState<Station[]>([])
+  const [isStationDatasetLoading, setIsStationDatasetLoading] = useState(true)
   const [stationLoadError, setStationLoadError] = useState<string | null>(null)
+  const [stationReloadVersion, setStationReloadVersion] = useState(0)
   const [planStatus, setPlanStatus] = useState<PlanStatus>('idle')
   const [planError, setPlanError] = useState<string | null>(null)
   const [rawPlan, setRawPlan] = useState<RawPlan | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
 
     async function loadStations() {
+      if (!cancelled) {
+        setIsStationDatasetLoading(true)
+      }
+
       try {
         const nextStations = await services.fuelPriceProvider.listStations()
 
         if (!cancelled) {
           setStations(nextStations)
           setStationLoadError(null)
+          setIsStationDatasetLoading(false)
         }
       } catch {
         if (!cancelled) {
-          setStationLoadError('Could not load the current NSW fuel dataset.')
+          setStationLoadError(
+            'Could not load the current NSW fuel dataset. Retrying automatically in a few seconds.',
+          )
+          setIsStationDatasetLoading(false)
+          retryTimer = setTimeout(() => {
+            setStationReloadVersion((current) => current + 1)
+          }, STATION_RETRY_DELAY_MS)
         }
       }
     }
@@ -265,8 +280,11 @@ function App({ services = defaultServices }: AppProps) {
 
     return () => {
       cancelled = true
+      if (retryTimer) {
+        clearTimeout(retryTimer)
+      }
     }
-  }, [services])
+  }, [services, stationReloadVersion])
 
   const allowedFuelCodes = FUEL_OPTIONS.filter((fuelCode) => fuelSelections[fuelCode])
   const fillStrategy = deriveFillStrategy(fillMode, fillValue)
@@ -686,9 +704,11 @@ function App({ services = defaultServices }: AppProps) {
                 <Button
                   type="submit"
                   loading={planStatus === 'planning'}
-                  disabled={stations.length === 0}
+                  disabled={stations.length === 0 || isStationDatasetLoading}
                 >
-                  Plan route
+                  {isStationDatasetLoading && stations.length === 0
+                    ? 'Loading fuel data...'
+                    : 'Plan route'}
                 </Button>
 
                 <Text size="sm" c="dimmed">
@@ -730,7 +750,19 @@ function App({ services = defaultServices }: AppProps) {
 
               {stationLoadError ? (
                 <Alert color="red" variant="light" icon={<IconAlertCircle size={16} />}>
-                  {stationLoadError}
+                  <Group justify="space-between" align="center" gap="sm">
+                    <Text size="sm">{stationLoadError}</Text>
+                    <Button
+                      type="button"
+                      variant="white"
+                      color="red"
+                      onClick={() =>
+                        setStationReloadVersion((current) => current + 1)
+                      }
+                    >
+                      Retry now
+                    </Button>
+                  </Group>
                 </Alert>
               ) : null}
 
