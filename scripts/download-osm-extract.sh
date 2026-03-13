@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-EXTRACT_URL="${OSM_EXTRACT_URL:-https://download.bbbike.org/osm/bbbike/Sydney/Sydney.osm.pbf}"
+EXTRACT_URL="${OSM_EXTRACT_URL:-https://download.openstreetmap.fr/extracts/oceania/australia/new_south_wales-latest.osm.pbf}"
 OSRM_DIR="./data/osrm"
 NOMINATIM_DIR="./data/nominatim"
 TARGET_FILE="${OSRM_DIR}/map.osm.pbf"

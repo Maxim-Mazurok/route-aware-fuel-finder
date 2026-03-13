@@ -33,7 +33,7 @@ npm install
 cp .env.example .env
 ```
 
-3. Download the Sydney OpenStreetMap extract used by the local routing container.
+3. Download the NSW OpenStreetMap extract used by the local routing container.
 
 ```bash
 npm run osm:download

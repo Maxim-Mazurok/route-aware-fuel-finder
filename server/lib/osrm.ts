@@ -2,6 +2,8 @@ import type { Coordinate, RoutePlan } from '../../src/domain/types'
 import { pathDistanceKm } from '../../src/domain/geo'
 import { formatCoordinate } from './nominatim'
 
+const MAX_SNAP_DISTANCE_METRES = 5_000
+
 export class OsrmClient {
   constructor(private readonly baseUrl: string) {}
 
@@ -18,6 +20,11 @@ export class OsrmClient {
     }
 
     const payload = (await response.json()) as {
+      waypoints?: Array<{
+        distance: number
+        location: [number, number]
+        name: string
+      }>
       routes?: Array<{
         distance: number
         duration: number
@@ -26,6 +33,25 @@ export class OsrmClient {
         }
       }>
     }
+
+    const waypoints = payload.waypoints ?? []
+    const originSnap = waypoints[0]
+    const destinationSnap = waypoints[1]
+
+    if (originSnap && originSnap.distance > MAX_SNAP_DISTANCE_METRES) {
+      throw new Error(
+        `Origin is ${Math.round(originSnap.distance / 1_000)} km outside the routing coverage area. ` +
+          'Download a larger OSM extract that includes this location.',
+      )
+    }
+
+    if (destinationSnap && destinationSnap.distance > MAX_SNAP_DISTANCE_METRES) {
+      throw new Error(
+        `Destination is ${Math.round(destinationSnap.distance / 1_000)} km outside the routing coverage area. ` +
+          'Download a larger OSM extract that includes this location.',
+      )
+    }
+
     const route = payload.routes?.[0]
 
     if (!route) {
