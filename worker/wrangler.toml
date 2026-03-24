@@ -1,0 +1,11 @@
+name = "route-aware-fuel-proxy"
+main = "index.ts"
+compatibility_date = "2026-03-01"
+
+[vars]
+FUEL_API_BASE_URL = "https://api.onegov.nsw.gov.au"
+ALLOWED_ORIGINS = "https://route-aware-fuel-finder.pages.dev,http://localhost:4173,http://127.0.0.1:4173"
+
+# Secrets (set via `npx -y wrangler secret put <name>`):
+#   FUEL_API_KEY
+#   FUEL_API_SECRET

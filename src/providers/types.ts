@@ -3,7 +3,7 @@ import type { Coordinate, RoutePlan, Station, StationRouteMetrics } from '../dom
 export interface ResolvedPlace {
   label: string
   coordinate: Coordinate
-  source: 'current-location' | 'saved' | 'mock-geocoder' | 'nominatim'
+  source: 'current-location' | 'saved' | 'mock-geocoder' | 'nominatim' | 'google-geocoding'
 }
 
 export interface FuelPriceProvider {

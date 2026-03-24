@@ -22,7 +22,11 @@
     "osm:up:full": "docker compose --profile local-geocode up -d osrm-routed nominatim",
     "osm:down": "docker compose down",
     "osm:logs": "docker compose logs -f osrm-routed",
-    "osm:logs:full": "docker compose --profile local-geocode logs -f osrm-routed nominatim"
+    "osm:logs:full": "docker compose --profile local-geocode logs -f osrm-routed nominatim",
+    "worker:dev": "cd worker && npx -y wrangler@latest dev",
+    "worker:deploy": "cd worker && npx -y wrangler@latest deploy",
+    "worker:secret:key": "cd worker && npx -y wrangler@latest secret put FUEL_API_KEY",
+    "worker:secret:secret": "cd worker && npx -y wrangler@latest secret put FUEL_API_SECRET"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans": "^5.2.8",

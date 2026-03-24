@@ -712,9 +712,8 @@ function App({ services = defaultServices }: AppProps) {
                 </Button>
 
                 <Text size="sm" c="dimmed">
-                  Fuel data comes from the live NSW feed. Routing uses local OSRM.
-                  Geocoding stays in the OSM ecosystem and falls back when the local
-                  geocoder is unavailable.
+                  Fuel data comes from the live NSW feed. All settings are stored
+                  locally in your browser.
                 </Text>
               </Stack>
             </form>
