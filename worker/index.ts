@@ -2,6 +2,7 @@ interface Environment {
   FUEL_API_KEY: string
   FUEL_API_SECRET: string
   FUEL_API_BASE_URL: string
+  GOOGLE_MAPS_API_KEY: string
   ALLOWED_ORIGINS: string
 }
 
@@ -245,6 +246,71 @@ function corsHeaders(
   }
 }
 
+async function handleGeocode(
+  url: URL,
+  environment: Environment,
+  request: Request,
+): Promise<Response> {
+  const address = url.searchParams.get('address')
+
+  if (!address) {
+    return new Response(
+      JSON.stringify({ error: 'Missing address parameter' }),
+      {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders(environment, request),
+        },
+      },
+    )
+  }
+
+  const geocodeUrl = new URL(
+    'https://maps.googleapis.com/maps/api/geocode/json',
+  )
+  geocodeUrl.searchParams.set('address', address)
+  geocodeUrl.searchParams.set('key', environment.GOOGLE_MAPS_API_KEY)
+  geocodeUrl.searchParams.set('components', 'country:AU')
+  geocodeUrl.searchParams.set('region', 'au')
+
+  try {
+    const response = await fetch(geocodeUrl.toString())
+
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({ error: `Geocoding failed with status ${response.status}` }),
+        {
+          status: response.status,
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders(environment, request),
+          },
+        },
+      )
+    }
+
+    const body = await response.text()
+
+    return new Response(body, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders(environment, request),
+      },
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Geocoding request failed'
+    return new Response(JSON.stringify({ error: message }), {
+      status: 502,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders(environment, request),
+      },
+    })
+  }
+}
+
 export default {
   async fetch(
     request: Request,
@@ -265,6 +331,12 @@ export default {
           ...corsHeaders(environment, request),
         },
       })
+    }
+
+    const url = new URL(request.url)
+
+    if (url.pathname === '/geocode') {
+      return handleGeocode(url, environment, request)
     }
 
     const cacheUrl = new URL(request.url)

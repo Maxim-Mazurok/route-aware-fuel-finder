@@ -9,7 +9,6 @@ import { decodePolyline } from './polyline'
 import { pickRouteCandidates } from './routeCandidates'
 
 const ROUTES_API_BASE = 'https://routes.googleapis.com'
-const GEOCODING_API_BASE = 'https://maps.googleapis.com/maps/api/geocode/json'
 
 export interface GoogleServicesConfig {
   googleApiKey: string
@@ -120,13 +119,10 @@ export function createGoogleServices(config: GoogleServicesConfig): AppServices 
           return null
         }
 
-        const url = new URL(GEOCODING_API_BASE)
-        url.searchParams.set('address', trimmed)
-        url.searchParams.set('key', config.googleApiKey)
-        url.searchParams.set('components', 'country:AU')
-        url.searchParams.set('region', 'au')
+        const geocodeUrl = new URL(`${config.fuelProxyUrl}/geocode`)
+        geocodeUrl.searchParams.set('address', trimmed)
 
-        const response = await fetch(url)
+        const response = await fetch(geocodeUrl)
 
         if (!response.ok) {
           throw new Error(`Geocoding request failed with status ${response.status}`)

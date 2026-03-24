@@ -9,3 +9,4 @@ ALLOWED_ORIGINS = "https://route-aware-fuel-finder.pages.dev,http://localhost:41
 # Secrets (set via `npx -y wrangler secret put <name>`):
 #   FUEL_API_KEY
 #   FUEL_API_SECRET
+#   GOOGLE_MAPS_API_KEY
