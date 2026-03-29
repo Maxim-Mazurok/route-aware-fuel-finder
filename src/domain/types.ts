@@ -1,5 +1,7 @@
 export type FuelCode = string
 
+export type PaymentCardType = 'visa-mastercard' | 'amex'
+
 export interface Coordinate {
   lat: number
   lng: number
@@ -80,5 +82,36 @@ export interface RankedStation {
   distanceFromOriginKm: number
   ageHours: number
   reachable: boolean
+  effectivePriceCentsPerLitre: number
+  discountCentsPerLitre: number
+  surchargeCentsPerLitre: number
+  appliedProgramName: string | null
   excludedReason?: 'fuel' | 'detour' | 'stale'
+}
+
+export type LoyaltyProgramPrerequisite = 'free-app' | 'supermarket-spend' | 'paid-membership'
+
+export interface LoyaltyProgram {
+  id: string
+  name: string
+  shortName: string
+  description: string
+  prerequisite: LoyaltyProgramPrerequisite
+  prerequisiteNote: string
+  discountCentsPerLitre: number
+  applicableBrands: string[]
+  brandColor: string
+  stackGroup?: string
+}
+
+export interface CardSurchargeEntry {
+  brand: string
+  visaMastercardPercent: number
+  amexPercent: number
+}
+
+export interface PriceAdjustments {
+  enabled: boolean
+  selectedProgramIds: string[]
+  paymentCardType: PaymentCardType
 }
