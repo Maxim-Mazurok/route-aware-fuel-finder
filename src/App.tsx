@@ -18,6 +18,7 @@ import {
   Text,
   TextInput,
   Title,
+  Tooltip,
 } from '@mantine/core'
 import { IconAlertCircle, IconInfoCircle } from '@tabler/icons-react'
 import { startTransition, useEffect, useState } from 'react'
@@ -31,10 +32,13 @@ import {
   formatFuelCode,
   formatFuelPrice,
 } from './domain/format'
+import { DEFAULT_PRICE_ADJUSTMENTS, LOYALTY_PROGRAMS } from './domain/loyalty'
 import { buildRankedStations } from './domain/ranking'
 import type {
   FillStrategy,
   FuelCode,
+  PaymentCardType,
+  PriceAdjustments,
   RankedStation,
   RoutePlan,
   SortMode,
@@ -238,6 +242,19 @@ function App({ services = defaultServices }: AppProps) {
     'recommended',
   )
 
+  const [loyaltyEnabled, setLoyaltyEnabled] = usePersistentState(
+    'route-aware-fuel-finder:loyalty-enabled',
+    DEFAULT_PRICE_ADJUSTMENTS.enabled,
+  )
+  const [selectedProgramIds, setSelectedProgramIds] = usePersistentState<string[]>(
+    'route-aware-fuel-finder:selected-programs',
+    DEFAULT_PRICE_ADJUSTMENTS.selectedProgramIds,
+  )
+  const [paymentCardType, setPaymentCardType] = usePersistentState<PaymentCardType>(
+    'route-aware-fuel-finder:payment-card-type',
+    DEFAULT_PRICE_ADJUSTMENTS.paymentCardType,
+  )
+
   const [stations, setStations] = useState<Station[]>([])
   const [isStationDatasetLoading, setIsStationDatasetLoading] = useState(true)
   const [stationLoadError, setStationLoadError] = useState<string | null>(null)
@@ -296,6 +313,12 @@ function App({ services = defaultServices }: AppProps) {
     allowedFuelCodes,
   }
 
+  const priceAdjustments: PriceAdjustments = {
+    enabled: loyaltyEnabled,
+    selectedProgramIds,
+    paymentCardType,
+  }
+
   const rankedStations =
     rawPlan && allowedFuelCodes.length > 0
       ? buildRankedStations({
@@ -315,6 +338,7 @@ function App({ services = defaultServices }: AppProps) {
             maxPriceAgeHours,
             sortMode,
           },
+          priceAdjustments,
         })
       : []
 
@@ -701,6 +725,145 @@ function App({ services = defaultServices }: AppProps) {
                   />
                 </Stack>
 
+                <Divider />
+
+                <Stack gap="md">
+                  <Group justify="space-between" align="center">
+                    <Box>
+                      <Title order={2} size="h3">
+                        Discounts and loyalty
+                      </Title>
+                      <Text size="sm" c="dimmed">
+                        Select programs you use. The effective price factors in
+                        discounts and card surcharges.
+                      </Text>
+                    </Box>
+                    <Switch
+                      checked={loyaltyEnabled}
+                      onChange={(event) =>
+                        setLoyaltyEnabled(event.currentTarget.checked)
+                      }
+                      label={loyaltyEnabled ? 'On' : 'Off'}
+                      labelPosition="left"
+                    />
+                  </Group>
+
+                  <NativeSelect
+                    label="Payment card type"
+                    description="Affects surcharges at some stations."
+                    value={paymentCardType}
+                    data={[
+                      { value: 'visa-mastercard', label: 'Visa / Mastercard' },
+                      { value: 'amex', label: 'American Express' },
+                    ]}
+                    onChange={(event) =>
+                      setPaymentCardType(
+                        event.currentTarget.value as PaymentCardType,
+                      )
+                    }
+                    disabled={!loyaltyEnabled}
+                  />
+
+                  <Stack gap="xs">
+                    {LOYALTY_PROGRAMS.map((program) => {
+                      const isSelected = selectedProgramIds.includes(program.id)
+                      const prerequisiteColor =
+                        program.prerequisite === 'free-app'
+                          ? 'green'
+                          : program.prerequisite === 'supermarket-spend'
+                            ? 'blue'
+                            : 'orange'
+                      const prerequisiteLabel =
+                        program.prerequisite === 'free-app'
+                          ? 'Free app'
+                          : program.prerequisite === 'supermarket-spend'
+                            ? 'Supermarket spend'
+                            : 'Paid membership'
+
+                      return (
+                        <Paper
+                          key={program.id}
+                          withBorder
+                          radius="md"
+                          p="sm"
+                          className={
+                            isSelected && loyaltyEnabled
+                              ? 'loyalty-program-selected'
+                              : ''
+                          }
+                        >
+                          <Group gap="sm" wrap="nowrap" align="flex-start">
+                            <Checkbox
+                              checked={isSelected}
+                              onChange={(event) => {
+                                if (event.currentTarget.checked) {
+                                  setSelectedProgramIds([
+                                    ...selectedProgramIds,
+                                    program.id,
+                                  ])
+                                } else {
+                                  setSelectedProgramIds(
+                                    selectedProgramIds.filter(
+                                      (existingId) => existingId !== program.id,
+                                    ),
+                                  )
+                                }
+                              }}
+                              disabled={!loyaltyEnabled}
+                              mt={4}
+                            />
+                            <Box
+                              className="loyalty-brand-avatar"
+                              style={{
+                                backgroundColor: program.brandColor,
+                              }}
+                            >
+                              <Text size="xs" fw={700} c="white" lh={1}>
+                                {program.shortName}
+                              </Text>
+                            </Box>
+                            <Stack gap={4} style={{ flex: 1 }}>
+                              <Group gap="xs" wrap="wrap">
+                                <Text fw={600} size="sm">
+                                  {program.name}
+                                </Text>
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  color={prerequisiteColor}
+                                >
+                                  {prerequisiteLabel}
+                                </Badge>
+                                <Badge size="xs" variant="outline">
+                                  −{program.discountCentsPerLitre} c/L
+                                </Badge>
+                              </Group>
+                              <Text size="xs" c="dimmed">
+                                {program.description}
+                              </Text>
+                              <Text size="xs" c="dimmed" fs="italic">
+                                {program.prerequisiteNote}
+                              </Text>
+                              <Group gap={4}>
+                                {program.applicableBrands.map((brand) => (
+                                  <Badge
+                                    key={brand}
+                                    size="xs"
+                                    variant="dot"
+                                    color="gray"
+                                  >
+                                    {brand}
+                                  </Badge>
+                                ))}
+                              </Group>
+                            </Stack>
+                          </Group>
+                        </Paper>
+                      )
+                    })}
+                  </Stack>
+                </Stack>
+
                 <Button
                   type="submit"
                   loading={planStatus === 'planning'}
@@ -835,8 +998,15 @@ function App({ services = defaultServices }: AppProps) {
 
                         <Stack gap={4} align="flex-end">
                           <Text fw={800} size="xl">
-                            {formatFuelPrice(station.chosenOffer.priceCentsPerLitre)}
+                            {formatFuelPrice(station.effectivePriceCentsPerLitre)}
                           </Text>
+                          {station.discountCentsPerLitre > 0 ? (
+                            <Text size="xs" c="dimmed" td="line-through">
+                              {formatFuelPrice(
+                                station.chosenOffer.priceCentsPerLitre,
+                              )}
+                            </Text>
+                          ) : null}
                           <Badge variant="default">
                             {formatFuelCode(station.chosenOffer.fuelCode)}
                           </Badge>
@@ -884,6 +1054,29 @@ function App({ services = defaultServices }: AppProps) {
                         <Badge variant="light" color="gray">
                           Time penalty {formatCurrency(station.timePenaltyDollars)}
                         </Badge>
+                        {station.appliedProgramName ? (
+                          <Tooltip label={station.appliedProgramName}>
+                            <Badge variant="light" color="teal">
+                              Loyalty −{station.discountCentsPerLitre.toFixed(1)} c/L
+                            </Badge>
+                          </Tooltip>
+                        ) : null}
+                        {station.surchargeCentsPerLitre > 0 ? (
+                          <Badge variant="light" color="red">
+                            Surcharge +{station.surchargeCentsPerLitre.toFixed(1)} c/L
+                          </Badge>
+                        ) : null}
+                        {station.discountCentsPerLitre > 0 ? (
+                          <Badge variant="light" color="teal">
+                            Save{' '}
+                            {formatCurrency(
+                              (station.fillLitres *
+                                station.discountCentsPerLitre) /
+                                100,
+                            )}{' '}
+                            on fill
+                          </Badge>
+                        ) : null}
                       </Group>
                     </Stack>
                   </Card>

@@ -1,6 +1,8 @@
 import { averageAllowedPrice, chooseBestOffer, computeFillLitres, estimatedRangeKm } from './fuel'
+import { computeEffectivePrice, DEFAULT_PRICE_ADJUSTMENTS } from './loyalty'
 import type {
   FillStrategy,
+  PriceAdjustments,
   RankedStation,
   RankingPreferences,
   RoutePlan,
@@ -21,6 +23,7 @@ export interface BuildRankedStationsArgs {
   vehicle: VehicleProfile
   fillStrategy: FillStrategy
   preferences: RankingPreferences
+  priceAdjustments?: PriceAdjustments
 }
 
 export function buildRankedStations({
@@ -31,6 +34,7 @@ export function buildRankedStations({
   vehicle,
   fillStrategy,
   preferences,
+  priceAdjustments = DEFAULT_PRICE_ADJUSTMENTS,
 }: BuildRankedStationsArgs) {
   const referencePrice = averageAllowedPrice(stations, vehicle.allowedFuelCodes)
   const reachableRangeKm = estimatedRangeKm(vehicle)
@@ -51,12 +55,24 @@ export function buildRankedStations({
       }
 
       const ageHours = hoursBetween(now, chosenOffer.updatedAt)
+
+      const {
+        effectivePriceCentsPerLitre,
+        discountCentsPerLitre,
+        surchargeCentsPerLitre,
+        appliedProgramName,
+      } = computeEffectivePrice(
+        chosenOffer.priceCentsPerLitre,
+        station.brand,
+        priceAdjustments,
+      )
+
       const fillLitres = computeFillLitres(
         fillStrategy,
         vehicle,
-        chosenOffer.priceCentsPerLitre,
+        effectivePriceCentsPerLitre,
       )
-      const fillCostDollars = (fillLitres * chosenOffer.priceCentsPerLitre) / 100
+      const fillCostDollars = (fillLitres * effectivePriceCentsPerLitre) / 100
       const detourFuelLitres =
         (metrics.extraDistanceKm * vehicle.consumptionLitresPer100Km) / 100
       const detourFuelCostDollars =
@@ -88,6 +104,10 @@ export function buildRankedStations({
           distanceFromOriginKm: metrics.distanceFromOriginKm,
           ageHours,
           reachable,
+          effectivePriceCentsPerLitre,
+          discountCentsPerLitre,
+          surchargeCentsPerLitre,
+          appliedProgramName,
           excludedReason: 'detour',
         }
       }
@@ -107,6 +127,10 @@ export function buildRankedStations({
           distanceFromOriginKm: metrics.distanceFromOriginKm,
           ageHours,
           reachable,
+          effectivePriceCentsPerLitre,
+          discountCentsPerLitre,
+          surchargeCentsPerLitre,
+          appliedProgramName,
           excludedReason: 'stale',
         }
       }
@@ -137,6 +161,10 @@ export function buildRankedStations({
         distanceFromOriginKm: metrics.distanceFromOriginKm,
         ageHours,
         reachable,
+        effectivePriceCentsPerLitre,
+        discountCentsPerLitre,
+        surchargeCentsPerLitre,
+        appliedProgramName,
       }
     })
     .filter((station): station is RankedStation => station !== null)
@@ -156,7 +184,7 @@ export function buildRankedStations({
     switch (preferences.sortMode) {
       case 'pump-price':
         return (
-          left.chosenOffer.priceCentsPerLitre - right.chosenOffer.priceCentsPerLitre
+          left.effectivePriceCentsPerLitre - right.effectivePriceCentsPerLitre
         )
       case 'extra-time':
         return left.extraDurationMinutes - right.extraDurationMinutes
