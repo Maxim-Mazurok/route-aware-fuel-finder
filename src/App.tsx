@@ -21,7 +21,7 @@ import {
   Tooltip,
 } from '@mantine/core'
 import { IconAlertCircle, IconInfoCircle } from '@tabler/icons-react'
-import { startTransition, useEffect, useState } from 'react'
+import { startTransition, useEffect, useMemo, useState } from 'react'
 
 import './App.css'
 import {
@@ -166,7 +166,10 @@ function App({ services: injectedServices }: AppProps) {
     defaultServices.routingBackend,
   )
 
-  const services = injectedServices ?? resolveServicesByBackend(preferredBackend)
+  const services = useMemo(
+    () => injectedServices ?? resolveServicesByBackend(preferredBackend),
+    [injectedServices, preferredBackend],
+  )
 
   const [destinationQuery, setDestinationQuery] = usePersistentState(
     'route-aware-fuel-finder:destination-query',
@@ -514,20 +517,27 @@ function App({ services: injectedServices }: AppProps) {
                     </Text>
                   )}
 
-                  {googleServicesAvailable && (
-                    <NativeSelect
-                      label="Routing backend"
-                      description="Google Routes supports toll avoidance. OSRM runs locally with no API costs."
-                      value={preferredBackend}
-                      onChange={(event) =>
-                        setPreferredBackend(event.currentTarget.value as RoutingBackend)
-                      }
-                      data={[
-                        { value: 'osrm', label: 'OSRM (local)' },
-                        { value: 'google', label: 'Google Routes' },
-                      ]}
-                    />
-                  )}
+                  <NativeSelect
+                    label="Routing backend"
+                    description={
+                      googleServicesAvailable
+                        ? 'Google Routes supports toll avoidance. OSRM runs locally with no API costs.'
+                        : 'Set VITE_GOOGLE_MAPS_API_KEY and VITE_FUEL_PROXY_URL to enable Google Routes.'
+                    }
+                    value={services.routingBackend}
+                    onChange={(event) =>
+                      setPreferredBackend(event.currentTarget.value as RoutingBackend)
+                    }
+                    disabled={!googleServicesAvailable}
+                    data={[
+                      { value: 'osrm', label: 'OSRM (local)' },
+                      {
+                        value: 'google',
+                        label: 'Google Routes',
+                        disabled: !googleServicesAvailable,
+                      },
+                    ]}
+                  />
 
                   <Tooltip
                     label="Toll avoidance is not supported by the local OSRM router. Switch to the Google Routes backend to enable this option."

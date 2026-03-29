@@ -255,4 +255,33 @@ describe('App', () => {
       expect(screen.getByText(/could not resolve the destination yet/i)).toBeInTheDocument()
     })
   })
+
+  it('shows the routing backend selector', () => {
+    renderApp()
+
+    expect(screen.getByLabelText(/routing backend/i)).toBeInTheDocument()
+  })
+
+  it('disables the routing backend selector when Google is not available', () => {
+    renderApp()
+
+    const selector = screen.getByLabelText(/routing backend/i)
+    expect(selector).toBeDisabled()
+  })
+
+  it('shows the avoid toll roads toggle', () => {
+    renderApp()
+
+    expect(screen.getByLabelText(/avoid toll roads/i)).toBeInTheDocument()
+  })
+
+  it('disables the avoid toll roads toggle when not using Google backend', () => {
+    renderApp()
+
+    const toggle = screen.getByLabelText(/avoid toll roads/i)
+    expect(toggle).toBeDisabled()
+    expect(
+      screen.getByText(/only available with the google routes backend/i),
+    ).toBeInTheDocument()
+  })
 })
