@@ -177,6 +177,10 @@ function App({ services = defaultServices }: AppProps) {
     'route-aware-fuel-finder:origin-query',
     '',
   )
+  const [avoidTolls, setAvoidTolls] = usePersistentState(
+    'route-aware-fuel-finder:avoid-tolls',
+    false,
+  )
   const [tankCapacityLitres, setTankCapacityLitres] = usePersistentState(
     'route-aware-fuel-finder:tank-capacity',
     50,
@@ -377,6 +381,7 @@ function App({ services = defaultServices }: AppProps) {
       const route = await services.routeProvider.planRoute(
         origin.coordinate,
         destination.coordinate,
+        { avoidTolls },
       )
       const metricsByStationId = await services.routeProvider.measureStationDetours(
         route,
@@ -501,6 +506,29 @@ function App({ services = defaultServices }: AppProps) {
                       The app uses your current location by default every time.
                     </Text>
                   )}
+
+                  <Tooltip
+                    label="Toll avoidance is not supported by the local OSRM router. Switch to the Google Routes backend to enable this option."
+                    disabled={services.routingBackend === 'google'}
+                    multiline
+                    w={280}
+                  >
+                    <Box>
+                      <Switch
+                        checked={avoidTolls}
+                        onChange={(event) =>
+                          setAvoidTolls(event.currentTarget.checked)
+                        }
+                        disabled={services.routingBackend !== 'google'}
+                        label="Avoid toll roads"
+                      />
+                      {services.routingBackend !== 'google' && (
+                        <Text size="xs" c="dimmed" mt={4}>
+                          Only available with the Google Routes backend.
+                        </Text>
+                      )}
+                    </Box>
+                  </Tooltip>
                 </Stack>
 
                 <Divider />

@@ -4,7 +4,7 @@ import type {
   Station,
   StationRouteMetrics,
 } from '../domain/types'
-import type { AppServices, ResolvedPlace } from './types'
+import type { AppServices, ResolvedPlace, RouteOptions } from './types'
 import { decodePolyline } from './polyline'
 import { pickRouteCandidates } from './routeCandidates'
 
@@ -68,6 +68,8 @@ function coordinateToMatrixEntry(coordinate: Coordinate) {
 }
 
 export function createGoogleServices(config: GoogleServicesConfig): AppServices {
+  const routingBackend = 'google' as const
+
   async function fetchRoutesApi<T>(
     endpoint: string,
     body: unknown,
@@ -98,6 +100,8 @@ export function createGoogleServices(config: GoogleServicesConfig): AppServices 
   }
 
   return {
+    routingBackend,
+
     fuelPriceProvider: {
       async listStations() {
         const response = await fetch(config.fuelProxyUrl)
@@ -151,13 +155,17 @@ export function createGoogleServices(config: GoogleServicesConfig): AppServices 
       async planRoute(
         origin: Coordinate,
         destination: Coordinate,
+        options?: RouteOptions,
       ): Promise<RoutePlan> {
+        const routeModifiers = options?.avoidTolls ? { avoidTolls: true } : undefined
+
         const payload = await fetchRoutesApi<ComputeRoutesResponse>(
           '/directions/v2:computeRoutes',
           {
             origin: coordinateToWaypoint(origin),
             destination: coordinateToWaypoint(destination),
             travelMode: 'DRIVE',
+            ...(routeModifiers && { routeModifiers }),
           },
           'routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline',
         )

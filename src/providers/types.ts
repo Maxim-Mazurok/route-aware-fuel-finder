@@ -14,8 +14,14 @@ export interface GeocodingProvider {
   resolve(query: string): Promise<ResolvedPlace | null>
 }
 
+export type RoutingBackend = 'osrm' | 'google' | 'mock'
+
+export interface RouteOptions {
+  avoidTolls?: boolean
+}
+
 export interface RouteProvider {
-  planRoute(origin: Coordinate, destination: Coordinate): Promise<RoutePlan>
+  planRoute(origin: Coordinate, destination: Coordinate, options?: RouteOptions): Promise<RoutePlan>
   measureStationDetours(
     route: RoutePlan,
     stations: Station[],
@@ -27,6 +33,7 @@ export interface CurrentLocationProvider {
 }
 
 export interface AppServices {
+  routingBackend: RoutingBackend
   fuelPriceProvider: FuelPriceProvider
   geocodingProvider: GeocodingProvider
   routeProvider: RouteProvider

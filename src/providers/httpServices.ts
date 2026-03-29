@@ -24,6 +24,8 @@ async function requestJson<T>(input: RequestInfo | URL, init?: RequestInit) {
 
 export function createHttpServices(): AppServices {
   return {
+    routingBackend: 'osrm',
+
     fuelPriceProvider: {
       async listStations() {
         const payload = await requestJson<{ stations: Station[] }>('/api/fuel/stations')
