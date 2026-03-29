@@ -1,12 +1,9 @@
 import { createMockServices } from './mockServices'
 import { createHttpServices } from './httpServices'
 import { createGoogleServices } from './googleServices'
+import type { AppServices, RoutingBackend } from './types'
 
-function resolveServices() {
-  if (import.meta.env.VITE_USE_MOCK_SERVICES === '1') {
-    return createMockServices()
-  }
-
+function resolveGoogleConfig() {
   const googleApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as
     | string
     | undefined
@@ -15,10 +12,34 @@ function resolveServices() {
     | undefined
 
   if (googleApiKey && fuelProxyUrl) {
-    return createGoogleServices({ googleApiKey, fuelProxyUrl })
+    return { googleApiKey, fuelProxyUrl }
+  }
+
+  return null
+}
+
+const googleConfig = resolveGoogleConfig()
+
+function resolveServices(): AppServices {
+  if (import.meta.env.VITE_USE_MOCK_SERVICES === '1') {
+    return createMockServices()
+  }
+
+  if (googleConfig) {
+    return createGoogleServices(googleConfig)
   }
 
   return createHttpServices()
 }
 
 export const defaultServices = resolveServices()
+
+export const googleServicesAvailable = googleConfig !== null
+
+export function resolveServicesByBackend(preferredBackend: RoutingBackend): AppServices {
+  if (preferredBackend === 'google' && googleConfig) {
+    return createGoogleServices(googleConfig)
+  }
+
+  return createHttpServices()
+}

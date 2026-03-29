@@ -21,7 +21,7 @@ import {
   Tooltip,
 } from '@mantine/core'
 import { IconAlertCircle, IconInfoCircle } from '@tabler/icons-react'
-import { startTransition, useEffect, useState } from 'react'
+import { startTransition, useEffect, useMemo, useState } from 'react'
 
 import './App.css'
 import {
@@ -49,8 +49,8 @@ import type {
 import { KNOWN_PLACES } from './fixtures/mockData'
 import { usePersistentState } from './hooks/usePersistentState'
 import { StationMap } from './components/StationMap'
-import { defaultServices } from './providers/defaultServices'
-import type { AppServices, ResolvedPlace } from './providers/types'
+import { defaultServices, googleServicesAvailable, resolveServicesByBackend } from './providers/defaultServices'
+import type { AppServices, ResolvedPlace, RoutingBackend } from './providers/types'
 
 const FUEL_OPTIONS: FuelCode[] = ['U91', 'E10', 'P95', 'P98', 'DL', 'PDL', 'LPG', 'EV']
 const STATION_RETRY_DELAY_MS = 3000
@@ -84,6 +84,8 @@ interface RawPlan {
   destination: ResolvedPlace
   route: RoutePlan
   metricsByStationId: Record<string, StationRouteMetrics>
+  avoidTolls: boolean
+  routingBackend: RoutingBackend
 }
 
 interface AppProps {
@@ -160,7 +162,17 @@ function explainStation(station: RankedStation, stations: RankedStation[]) {
   return 'Balanced trade-off between fill cost, detour, and time value.'
 }
 
-function App({ services = defaultServices }: AppProps) {
+function App({ services: injectedServices }: AppProps) {
+  const [preferredBackend, setPreferredBackend] = usePersistentState<RoutingBackend>(
+    'route-aware-fuel-finder:preferred-backend',
+    defaultServices.routingBackend,
+  )
+
+  const services = useMemo(
+    () => injectedServices ?? resolveServicesByBackend(preferredBackend),
+    [injectedServices, preferredBackend],
+  )
+
   const [destinationQuery, setDestinationQuery] = usePersistentState(
     'route-aware-fuel-finder:destination-query',
     '',
@@ -176,6 +188,10 @@ function App({ services = defaultServices }: AppProps) {
   const [originQuery, setOriginQuery] = usePersistentState(
     'route-aware-fuel-finder:origin-query',
     '',
+  )
+  const [avoidTolls, setAvoidTolls] = usePersistentState(
+    'route-aware-fuel-finder:avoid-tolls',
+    false,
   )
   const [tankCapacityLitres, setTankCapacityLitres] = usePersistentState(
     'route-aware-fuel-finder:tank-capacity',
@@ -374,24 +390,40 @@ function App({ services = defaultServices }: AppProps) {
         resolvePlace(destinationQuery, 'destination'),
       ])
 
-      const route = await services.routeProvider.planRoute(
-        origin.coordinate,
-        destination.coordinate,
-      )
-      const metricsByStationId = await services.routeProvider.measureStationDetours(
-        route,
-        stations,
-      )
+      const routeInputsChanged =
+        !rawPlan ||
+        rawPlan.origin.coordinate.lat !== origin.coordinate.lat ||
+        rawPlan.origin.coordinate.lng !== origin.coordinate.lng ||
+        rawPlan.destination.coordinate.lat !== destination.coordinate.lat ||
+        rawPlan.destination.coordinate.lng !== destination.coordinate.lng ||
+        rawPlan.avoidTolls !== avoidTolls ||
+        rawPlan.routingBackend !== services.routingBackend
 
-      startTransition(() => {
-        setRawPlan({
-          origin,
-          destination,
-          route,
-          metricsByStationId,
+      if (routeInputsChanged) {
+        const route = await services.routeProvider.planRoute(
+          origin.coordinate,
+          destination.coordinate,
+          { avoidTolls },
+        )
+        const metricsByStationId =
+          await services.routeProvider.measureStationDetours(route, stations)
+
+        startTransition(() => {
+          setRawPlan({
+            origin,
+            destination,
+            route,
+            metricsByStationId,
+            avoidTolls,
+            routingBackend: services.routingBackend,
+          })
+          setPlanStatus('ready')
         })
-        setPlanStatus('ready')
-      })
+      } else {
+        startTransition(() => {
+          setPlanStatus('ready')
+        })
+      }
     } catch (error) {
       setPlanStatus('error')
       setPlanError(
@@ -501,6 +533,51 @@ function App({ services = defaultServices }: AppProps) {
                       The app uses your current location by default every time.
                     </Text>
                   )}
+
+                  <NativeSelect
+                    label="Routing backend"
+                    description={
+                      googleServicesAvailable
+                        ? 'Google Routes supports toll avoidance. OSRM runs locally with no API costs.'
+                        : 'Set VITE_GOOGLE_MAPS_API_KEY and VITE_FUEL_PROXY_URL to enable Google Routes.'
+                    }
+                    value={services.routingBackend}
+                    onChange={(event) =>
+                      setPreferredBackend(event.currentTarget.value as RoutingBackend)
+                    }
+                    disabled={!googleServicesAvailable}
+                    data={[
+                      { value: 'osrm', label: 'OSRM (local)' },
+                      {
+                        value: 'google',
+                        label: 'Google Routes',
+                        disabled: !googleServicesAvailable,
+                      },
+                    ]}
+                  />
+
+                  <Tooltip
+                    label="Toll avoidance is not supported by the local OSRM router. Switch to the Google Routes backend to enable this option."
+                    disabled={services.routingBackend === 'google'}
+                    multiline
+                    w={280}
+                  >
+                    <Box>
+                      <Switch
+                        checked={avoidTolls}
+                        onChange={(event) =>
+                          setAvoidTolls(event.currentTarget.checked)
+                        }
+                        disabled={services.routingBackend !== 'google'}
+                        label="Avoid toll roads"
+                      />
+                      {services.routingBackend !== 'google' && (
+                        <Text size="xs" c="dimmed" mt={4}>
+                          Only available with the Google Routes backend.
+                        </Text>
+                      )}
+                    </Box>
+                  </Tooltip>
                 </Stack>
 
                 <Divider />

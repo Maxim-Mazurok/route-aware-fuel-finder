@@ -116,6 +116,8 @@ export function createMockServices({
   }
 
   return {
+    routingBackend: 'mock',
+
     fuelPriceProvider: {
       async listStations() {
         return createMockStations(now())
