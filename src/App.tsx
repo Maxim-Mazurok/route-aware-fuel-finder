@@ -49,8 +49,8 @@ import type {
 import { KNOWN_PLACES } from './fixtures/mockData'
 import { usePersistentState } from './hooks/usePersistentState'
 import { StationMap } from './components/StationMap'
-import { defaultServices } from './providers/defaultServices'
-import type { AppServices, ResolvedPlace } from './providers/types'
+import { defaultServices, googleServicesAvailable, resolveServicesByBackend } from './providers/defaultServices'
+import type { AppServices, ResolvedPlace, RoutingBackend } from './providers/types'
 
 const FUEL_OPTIONS: FuelCode[] = ['U91', 'E10', 'P95', 'P98', 'DL', 'PDL', 'LPG', 'EV']
 const STATION_RETRY_DELAY_MS = 3000
@@ -160,7 +160,14 @@ function explainStation(station: RankedStation, stations: RankedStation[]) {
   return 'Balanced trade-off between fill cost, detour, and time value.'
 }
 
-function App({ services = defaultServices }: AppProps) {
+function App({ services: injectedServices }: AppProps) {
+  const [preferredBackend, setPreferredBackend] = usePersistentState<RoutingBackend>(
+    'route-aware-fuel-finder:preferred-backend',
+    defaultServices.routingBackend,
+  )
+
+  const services = injectedServices ?? resolveServicesByBackend(preferredBackend)
+
   const [destinationQuery, setDestinationQuery] = usePersistentState(
     'route-aware-fuel-finder:destination-query',
     '',
@@ -505,6 +512,21 @@ function App({ services = defaultServices }: AppProps) {
                     <Text size="sm" c="dimmed">
                       The app uses your current location by default every time.
                     </Text>
+                  )}
+
+                  {googleServicesAvailable && (
+                    <NativeSelect
+                      label="Routing backend"
+                      description="Google Routes supports toll avoidance. OSRM runs locally with no API costs."
+                      value={preferredBackend}
+                      onChange={(event) =>
+                        setPreferredBackend(event.currentTarget.value as RoutingBackend)
+                      }
+                      data={[
+                        { value: 'osrm', label: 'OSRM (local)' },
+                        { value: 'google', label: 'Google Routes' },
+                      ]}
+                    />
                   )}
 
                   <Tooltip
