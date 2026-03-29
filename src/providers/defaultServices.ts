@@ -1,7 +1,7 @@
 import { createMockServices } from './mockServices'
 import { createHttpServices } from './httpServices'
 import { createGoogleServices } from './googleServices'
-import type { AppServices } from './types'
+import type { AppServices, RoutingBackend } from './types'
 
 function resolveGoogleConfig() {
   const googleApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as
@@ -36,7 +36,7 @@ export const defaultServices = resolveServices()
 
 export const googleServicesAvailable = googleConfig !== null
 
-export function resolveServicesByBackend(preferredBackend: 'osrm' | 'google'): AppServices {
+export function resolveServicesByBackend(preferredBackend: RoutingBackend): AppServices {
   if (preferredBackend === 'google' && googleConfig) {
     return createGoogleServices(googleConfig)
   }
