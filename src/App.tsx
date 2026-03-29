@@ -84,6 +84,8 @@ interface RawPlan {
   destination: ResolvedPlace
   route: RoutePlan
   metricsByStationId: Record<string, StationRouteMetrics>
+  avoidTolls: boolean
+  routingBackend: RoutingBackend
 }
 
 interface AppProps {
@@ -388,25 +390,40 @@ function App({ services: injectedServices }: AppProps) {
         resolvePlace(destinationQuery, 'destination'),
       ])
 
-      const route = await services.routeProvider.planRoute(
-        origin.coordinate,
-        destination.coordinate,
-        { avoidTolls },
-      )
-      const metricsByStationId = await services.routeProvider.measureStationDetours(
-        route,
-        stations,
-      )
+      const routeInputsChanged =
+        !rawPlan ||
+        rawPlan.origin.coordinate.lat !== origin.coordinate.lat ||
+        rawPlan.origin.coordinate.lng !== origin.coordinate.lng ||
+        rawPlan.destination.coordinate.lat !== destination.coordinate.lat ||
+        rawPlan.destination.coordinate.lng !== destination.coordinate.lng ||
+        rawPlan.avoidTolls !== avoidTolls ||
+        rawPlan.routingBackend !== services.routingBackend
 
-      startTransition(() => {
-        setRawPlan({
-          origin,
-          destination,
-          route,
-          metricsByStationId,
+      if (routeInputsChanged) {
+        const route = await services.routeProvider.planRoute(
+          origin.coordinate,
+          destination.coordinate,
+          { avoidTolls },
+        )
+        const metricsByStationId =
+          await services.routeProvider.measureStationDetours(route, stations)
+
+        startTransition(() => {
+          setRawPlan({
+            origin,
+            destination,
+            route,
+            metricsByStationId,
+            avoidTolls,
+            routingBackend: services.routingBackend,
+          })
+          setPlanStatus('ready')
         })
-        setPlanStatus('ready')
-      })
+      } else {
+        startTransition(() => {
+          setPlanStatus('ready')
+        })
+      }
     } catch (error) {
       setPlanStatus('error')
       setPlanError(

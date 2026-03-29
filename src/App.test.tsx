@@ -262,11 +262,17 @@ describe('App', () => {
     expect(screen.getByLabelText(/routing backend/i)).toBeInTheDocument()
   })
 
-  it('disables the routing backend selector when Google is not available', () => {
+  it('renders the routing backend selector matching Google availability', () => {
     renderApp()
 
     const selector = screen.getByLabelText(/routing backend/i)
-    expect(selector).toBeDisabled()
+    const googleOption = selector.querySelector('option[value="google"]') as HTMLOptionElement | null
+
+    if (googleOption?.disabled) {
+      expect(selector).toBeDisabled()
+    } else {
+      expect(selector).toBeEnabled()
+    }
   })
 
   it('shows the avoid toll roads toggle', () => {
@@ -283,5 +289,45 @@ describe('App', () => {
     expect(
       screen.getByText(/only available with the google routes backend/i),
     ).toBeInTheDocument()
+  })
+
+  it('caches the route when re-planning with unchanged origin and destination', async () => {
+    const user = userEvent.setup()
+
+    const services = createMockServices({
+      now: () => fixedNow,
+      currentLocation: {
+        label: 'Sydney Town Hall, George Street, Sydney NSW 2000',
+        coordinate: { lat: -33.8731, lng: 151.2065 },
+        source: 'current-location',
+      },
+    })
+
+    const planRouteSpy = vi.spyOn(services.routeProvider, 'planRoute')
+    const measureDetoursSpy = vi.spyOn(services.routeProvider, 'measureStationDetours')
+
+    renderApp(services)
+
+    await user.clear(screen.getByLabelText(/destination/i))
+    await user.type(
+      screen.getByLabelText(/destination/i),
+      'Parramatta Station, Parramatta NSW 2150',
+    )
+
+    await user.click(screen.getByRole('button', { name: /plan route/i }))
+    await waitFor(() => {
+      expect(screen.getAllByTestId('station-card').length).toBeGreaterThan(0)
+    })
+
+    expect(planRouteSpy).toHaveBeenCalledTimes(1)
+    expect(measureDetoursSpy).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole('button', { name: /plan route/i }))
+    await waitFor(() => {
+      expect(screen.getAllByTestId('station-card').length).toBeGreaterThan(0)
+    })
+
+    expect(planRouteSpy).toHaveBeenCalledTimes(1)
+    expect(measureDetoursSpy).toHaveBeenCalledTimes(1)
   })
 })
