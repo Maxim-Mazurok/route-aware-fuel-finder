@@ -75,7 +75,8 @@ export const LOYALTY_PROGRAMS: LoyaltyProgram[] = [
 
 /**
  * Card surcharge rates per fuel station brand.
- * Source: surchargetracker.net (verified May 2025).
+ * Sources: surchargetracker.net (verified May 2025),
+ * Payless Fuel verified via personal transaction (March 2026).
  *
  * Most major chains charge 0% on Visa/Mastercard.
  * Amex surcharges range from 0% to 1.5%.
@@ -87,6 +88,7 @@ export const CARD_SURCHARGES: CardSurchargeEntry[] = [
   { brand: 'BP', visaMastercardPercent: 0, amexPercent: 1.5 },
   { brand: 'Caltex', visaMastercardPercent: 0, amexPercent: 1.5 },
   { brand: 'Coles Express', visaMastercardPercent: 0, amexPercent: 1 },
+  { brand: 'Payless Fuel', visaMastercardPercent: 0, amexPercent: 0 },
   { brand: 'Shell', visaMastercardPercent: 0, amexPercent: 1.5 },
 ]
 
